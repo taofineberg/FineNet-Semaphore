@@ -1,7 +1,32 @@
 ---
-- hosts: web_servers
+- name: Update and upgrade packages on the server
+  hosts: all
   become: true
   tasks:
-    - name: Print OS info
-      ansible.builtin.package:
-        name: apache2
+    - name: Update package list
+      ansible.builtin.apt:
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        upgrade: dist
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure the latest packages for RedHat-based systems
+      ansible.builtin.yum:
+        name: "*"
+        state: latest
+      when: ansible_os_family == "RedHat"
+
+    - name: Reboot the server if needed (Debian-based)
+      ansible.builtin.reboot:
+        when: ansible_os_family == "Debian" and reboot_required.stat.exists
+
+    - name: Reboot the server if needed (RedHat-based)
+      ansible.builtin.reboot:
+        when: ansible_os_family == "RedHat" and yum_package_changed is defined and yum_package_changed.changed
+
+  handlers:
+    - name: Reboot the server
+      ansible.builtin.reboot:
